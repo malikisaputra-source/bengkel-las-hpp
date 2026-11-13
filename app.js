@@ -5,6 +5,27 @@
   var KUNCI = 'laship-data-v1';
   var DEMO = /[?&]demo\b/.test(location.search);
   var kurangGerak = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // ---------- Logo & foto (SATU tempat pengaturan gambar) ----------
+  // Logo bengkel (sidebar + kepala RAB) diunggah di Pengaturan; foto hasil kerja diunggah per order (Detail order).
+  // Semua diperkecil ke GAMBAR.maks px lalu disimpan sebagai dataURL di localStorage (ikut Cadangan JSON).
+  var GAMBAR = { maks: 400, mutu: 0.75, fotoPerOrder: 4 };
+  function kecilkan(file, png, cb) {
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      var s = Math.min(1, GAMBAR.maks / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); cb(png ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', GAMBAR.mutu));
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); toast('Gambar tidak bisa dibaca', true); };
+    img.src = url;
+  }
+  function gambarAman(s) { return /^data:image\/(png|jpe?g|webp|gif);base64,/.test(s || ''); }
+  function inisial(s) { return String(s || '?').trim().split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase() || '?'; }
+  window.addEventListener('error', function (e) { // logo gagal dimuat → inisial nama bengkel
+    var t = e.target; if (t && t.tagName === 'IMG' && t.dataset.inisial) { var s = document.createElement('b'); s.className = 'ini'; s.textContent = t.dataset.inisial; t.replaceWith(s); }
+  }, true);
+  function logoHTML(cls) { var L = D && D.atur && D.atur.logo; return gambarAman(L) ? '<img class="' + (cls || '') + '" src="' + L + '" alt="" data-inisial="' + inisial(namaUsaha()).replace(/[^A-Z0-9?]/g, '') + '">' : ''; }
+  function isiLogo() { var el = $('.merek .logo'); if (!el) return; var h = logoHTML(); el.classList.toggle('pakai-foto', !!h); el.innerHTML = h || '<svg viewBox="0 0 24 24"><use href="#i-percik"/></svg>'; }
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -64,7 +85,7 @@
     ];
     return {
       versi: 1, bahan: b, order: order,
-      atur: { alamat: 'Jl. Raya Industri No. 45, Bekasi', hp: '081200001234', upah: 150000, margin: 30, dp: 50, kerf: 3, dayaCat: 6, kawatM2: 0.25, listrikHari: 25000, transport: 150000, berlaku: 14 }
+      atur: { logo: '', alamat: 'Jl. Raya Industri No. 45, Bekasi', hp: '081200001234', upah: 150000, margin: 30, dp: 50, kerf: 3, dayaCat: 6, kawatM2: 0.25, listrikHari: 25000, transport: 150000, berlaku: 14 }
     };
   }
   function migrasi(d) {
@@ -72,7 +93,7 @@
     if (!d || typeof d !== 'object') return c;
     d.versi = 1; d.bahan = Array.isArray(d.bahan) ? d.bahan : []; d.order = Array.isArray(d.order) ? d.order : [];
     d.atur = Object.assign({}, c.atur, d.atur || {});
-    d.order.forEach(function (o) { o.item = o.item || []; o.tukang = o.tukang || { orang: 1, hari: 1, upah: d.atur.upah }; o.oh = Object.assign({ listrik: 0, gas: 0, transport: 0, sewa: 0 }, o.oh || {}); if (o.margin == null) o.margin = d.atur.margin; if (o.dp == null) o.dp = d.atur.dp; o.bayar = +o.bayar || 0; });
+    d.order.forEach(function (o) { o.item = o.item || []; o.tukang = o.tukang || { orang: 1, hari: 1, upah: d.atur.upah }; o.oh = Object.assign({ listrik: 0, gas: 0, transport: 0, sewa: 0 }, o.oh || {}); if (o.margin == null) o.margin = d.atur.margin; if (o.dp == null) o.dp = d.atur.dp; o.bayar = +o.bayar || 0; o.foto = Array.isArray(o.foto) ? o.foto.filter(gambarAman) : []; });
     return d;
   }
   var D;
@@ -383,6 +404,7 @@
 
   function detailOrder(oid) {
     var o = D.order.filter(function (x) { return x.id === oid; })[0]; if (!o) return;
+    if (!Array.isArray(o.foto)) o.foto = [];
     var h = hitung(o), iSt = STATUS.map(function (s) { return s.k; }).indexOf(o.status), lanjut = STATUS[iSt + 1];
     var html = '<div class="grid-2" style="grid-template-columns:1.3fr 1fr;margin:0">' +
       '<div><p class="label-teknis">' + esc(o.no) + ' · ' + tglIndo(o.tgl) + '</p><h3 style="margin:4px 0 6px;font-size:20px">' + esc(o.judul) + '</h3>' +
@@ -394,13 +416,20 @@
         '<tr><td>Overhead (listrik, gas, transport, sewa alat)</td><td></td><td class="kanan angka">' + rp(h.overhead) + '</td></tr>' +
         '</tbody></table></div></div>' +
       '<div>' + ringkasHpp(h, o) + '</div></div>' +
+      '<div class="foto-order"><p class="label-teknis">Foto hasil kerja (' + o.foto.length + '/' + GAMBAR.fotoPerOrder + ')</p><div class="foto-order-daftar">' +
+        o.foto.map(function (src, i) { return '<figure><img src="' + src + '" alt="Foto hasil kerja ' + esc(o.no) + ' ke-' + (i + 1) + '" loading="lazy"><button type="button" class="foto-hapus" data-aksi="hapus-foto" data-id="' + o.id + '" data-i="' + i + '" aria-label="Hapus foto ke-' + (i + 1) + '">' + ikon('hapus') + '</button></figure>'; }).join('') +
+        (o.foto.length < GAMBAR.fotoPerOrder ? '<label class="foto-tambah">' + ikon('tambah') + '<span>Tambah foto</span><input type="file" accept="image/*" multiple data-foto-order="' + o.id + '"></label>' : '') + '</div></div>' +
       '<div class="aksi-form" style="margin-top:16px"><button class="tombol bahaya kecil kiri" type="button" data-aksi="hapus-order" data-id="' + o.id + '">' + ikon('hapus') + 'Hapus</button>' +
       '<button class="tombol garis kecil" type="button" data-aksi="wa-order" data-id="' + o.id + '">' + ikon('wa') + 'WA</button>' +
       '<button class="tombol garis kecil" type="button" data-aksi="bayar-order" data-id="' + o.id + '">Catat bayar</button>' +
       '<button class="tombol garis kecil" type="button" data-aksi="edit-order" data-id="' + o.id + '">' + ikon('edit') + 'Edit</button>' +
       '<button class="tombol garis kecil" type="button" data-aksi="rab" data-id="' + o.id + '">' + ikon('cetak') + 'RAB</button>' +
       (lanjut ? '<button class="tombol kecil" type="button" data-aksi="maju" data-id="' + o.id + '">Maju ke ' + lanjut.n + '</button>' : '') + '</div>';
-    bukaModal('Detail order', html);
+    var root = bukaModal('Detail order', html), inp = root && $('[data-foto-order]', root);
+    if (inp) inp.addEventListener('change', function () {
+      var files = Array.prototype.slice.call(inp.files || []).filter(function (f) { return /^image\//.test(f.type); }).slice(0, GAMBAR.fotoPerOrder - o.foto.length), sisa = files.length;
+      files.forEach(function (f) { kecilkan(f, false, function (d) { o.foto.push(d); if (!--sisa) { simpan(); toast('Foto hasil kerja disimpan'); detailOrder(o.id); } }); });
+    });
   }
   function ringkasHpp(h, o) {
     var tot = h.hpp || 1;
@@ -474,7 +503,7 @@
     o.item.filter(function (x) { return num(x.q) > 0; }).forEach(function (x) { var b = bahanById(x.b); if (!b) return; var hs = Math.round(b.harga * k / 100) * 100, j = hs * num(x.q); subBahan += j; baris.push([b.nama, ang(x.q) + ' ' + b.satuan, rp(hs), rp(j)]); });
     var jasa = h.jual - subBahan;
     baris.push(['Jasa fabrikasi, pengelasan, pengecatan & pemasangan', '1 ls', rp(jasa), rp(jasa)]);
-    return '<div class="rab"><div class="rab-kepala"><div><h1>' + esc(namaUsaha()) + '</h1><p>' + esc(A.alamat) + ' · WA ' + esc(A.hp) + '</p></div><div style="text-align:right"><h1 style="font-size:16px">PENAWARAN HARGA / RAB</h1><p>No. ' + esc(o.no) + '</p><p>' + tglIndo(o.tgl) + '</p></div></div>' +
+    return '<div class="rab"><div class="rab-kepala"><div class="rab-merek">' + (logoHTML('rab-logo') || '<span class="rab-logo rab-ini">' + esc(inisial(namaUsaha())) + '</span>') + '<div><h1>' + esc(namaUsaha()) + '</h1><p>' + esc(A.alamat) + ' · WA ' + esc(A.hp) + '</p></div></div><div style="text-align:right"><h1 style="font-size:16px">PENAWARAN HARGA / RAB</h1><p>No. ' + esc(o.no) + '</p><p>' + tglIndo(o.tgl) + '</p></div></div>' +
       '<p style="font-size:12px;margin:0 0 4px">Kepada Yth. <b>' + esc(o.pelanggan) + '</b><br>' + esc(o.alamat) + '</p>' +
       '<p style="font-size:12px;margin:8px 0 12px">Pekerjaan: <b>' + esc(o.judul) + '</b> (' + esc(o.jenis) + ', ukuran ' + ang(o.p) + ' × ' + ang(o.t) + ' m = ' + ang(h.luas) + ' m²)</p>' +
       '<table><thead><tr><th>No</th><th>Uraian</th><th class="kanan">Volume</th><th class="kanan">Harga satuan</th><th class="kanan">Jumlah</th></tr></thead><tbody>' +
@@ -606,13 +635,17 @@
   RENDER.pengaturan = function (isi) {
     var A = D.atur; $('#kepalaSub').textContent = 'Tarif bawaan & data';
     var f = function (k, l, ket, tipe) { return '<div class="medan"><label for="a_' + k + '">' + l + '</label><input id="a_' + k + '" name="' + k + '" type="' + (tipe || 'number') + '" step="any" min="0" value="' + esc(A[k]) + '">' + (ket ? '<small>' + ket + '</small>' : '') + '</div>'; };
-    isi.innerHTML = '<form class="kartu form" id="formAtur" data-bagian="panel" novalidate><h2>Profil & tarif bawaan</h2><div class="form-grid">' + f('alamat', 'Alamat bengkel', 'Muncul di kepala RAB', 'text') + f('hp', 'No. WA bengkel', '', 'tel') +
+    isi.innerHTML = '<form class="kartu form" id="formAtur" data-bagian="panel" novalidate><h2>Profil & tarif bawaan</h2>' +
+      '<div class="medan logo-medan"><span class="label-logo">Logo bengkel <small class="redup">(sidebar & kepala RAB, persegi)</small></span><div class="logo-baris"><span class="logo-prev">' + (logoHTML() || ikon('percik')) + '</span>' +
+      '<label class="tombol garis kecil" style="cursor:pointer">' + ikon('unduh') + 'Pilih logo<input type="file" accept="image/*" id="aLogo" class="sr-file"></label>' + (A.logo ? '<button class="tombol garis kecil" type="button" id="aLogoHapus">Hapus</button>' : '') + '</div><small>Diperkecil otomatis ke ' + GAMBAR.maks + ' px.</small></div><div class="form-grid">' + f('alamat', 'Alamat bengkel', 'Muncul di kepala RAB', 'text') + f('hp', 'No. WA bengkel', '', 'tel') +
       f('upah', 'Upah tukang / hari (Rp)') + f('margin', 'Markup bawaan (%)') + f('dp', 'DP bawaan (%)') + f('berlaku', 'Penawaran berlaku (hari)') +
       f('listrikHari', 'Listrik mesin las / hari (Rp)') + f('transport', 'Transport bawaan (Rp)') + f('kerf', 'Tebal potong gerinda (mm)', 'Dipakai saat menghitung sisa potong') + f('dayaCat', 'Daya sebar cat (m² per kg)', 'Cat besi umumnya 6–8 m²/kg sekali lapis') + f('kawatM2', 'Kawat las (kg per m²)', 'Rata-rata 0,2–0,3 kg/m² untuk pagar hollow') +
       '</div><div class="aksi-form"><button class="tombol" type="submit">' + ikon('cek') + 'Simpan pengaturan</button></div></form>' +
       '<div class="grid-2" style="margin-top:14px"><div class="kartu"><h2>Data & cadangan</h2><p class="redup" style="font-size:14px;margin-top:0">Data tersimpan di browser ini (localStorage). Unduh cadangan rutin.</p><div class="aksi-form" style="justify-content:flex-start"><button class="tombol garis" type="button" data-aksi="backup">' + ikon('unduh') + 'Cadangan JSON</button><label class="tombol garis" for="impor" style="cursor:pointer">Pulihkan JSON</label><input id="impor" type="file" accept="application/json" class="sr"></div></div>' +
       '<div class="kartu"><h2>Tampilan</h2><div class="aksi-form" style="justify-content:flex-start"><button class="tombol garis" type="button" data-aksi="mode">' + ikon('bulan') + 'Ganti mode terang/gelap</button><button class="tombol bahaya" type="button" data-aksi="reset">Isi ulang data contoh</button></div>' + (DEMO ? '<p class="redup" style="font-size:13px">Mode demo: perubahan tidak disimpan.</p>' : '') + '</div></div>';
     $('#formAtur').addEventListener('submit', function (e) { e.preventDefault(); var el = e.target.elements; Object.keys(A).forEach(function (k) { if (!el[k]) return; A[k] = el[k].type === 'number' ? num(el[k].value) : el[k].value.trim(); }); simpan(); toast('Pengaturan disimpan'); });
+    $('#aLogo').addEventListener('change', function (e) { var f = e.target.files[0]; e.target.value = ''; if (!f || !/^image\//.test(f.type)) return; kecilkan(f, true, function (d) { A.logo = d; simpan(); isiLogo(); toast('Logo bengkel disimpan'); RENDER.pengaturan(isi); }); });
+    if ($('#aLogoHapus')) $('#aLogoHapus').addEventListener('click', function () { A.logo = ''; simpan(); isiLogo(); toast('Logo dihapus'); RENDER.pengaturan(isi); });
     $('#impor').addEventListener('change', function (e) {
       var file = e.target.files[0]; if (!file) return; var rd = new FileReader();
       rd.onload = function () { try { var x = JSON.parse(rd.result); if (!x.order || !x.bahan) throw 0; D = migrasi(x); simpan(); toast('Data dipulihkan'); buka('dasbor'); } catch (er) { toast('Berkas bukan cadangan yang valid', true); } };
@@ -629,6 +662,7 @@
     var kartu = e.target.closest('[data-buka]'); if (kartu) { detailOrder(kartu.dataset.buka); return; }
     var b = e.target.closest('[data-aksi]'); if (!b) return;
     var a = b.dataset.aksi, o = b.dataset.id && D.order.filter(function (x) { return x.id === b.dataset.id; })[0];
+    if (a === 'hapus-foto' && o) { o.foto.splice(+b.dataset.i, 1); simpan(); toast('Foto dihapus'); detailOrder(o.id); return; }
     if (a === 'order-baru') formOrder(orderKosong(), true);
     else if (a === 'edit-order' && o) formOrder(o, false);
     else if (a === 'maju' && o) { var i = STATUS.map(function (s) { return s.k; }).indexOf(o.status); o.status = STATUS[Math.min(3, i + 1)].k; if (o.status === 'lunas') { o.tglLunas = hariIni(); o.bayar = hitung(o).jual; } simpan(); toast(o.no + ' → ' + STATUS[Math.min(3, i + 1)].n); buka(halaman); detailOrder(o.id); }
@@ -660,7 +694,7 @@
   window.addEventListener('afterprint', function () { $('#cetak').innerHTML = ''; });
 
   /* ---------- Mulai ---------- */
-  muat(); bangunMenu(); isiNama(); teksAtas(); tombolMode();
+  muat(); bangunMenu(); isiNama(); isiLogo(); teksAtas(); tombolMode();
   buka((location.hash || '#dasbor').slice(1));
   window.BengkelLas = { hitung: hitung, potongBatang: potongBatang };
 })();

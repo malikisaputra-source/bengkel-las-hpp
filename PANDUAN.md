@@ -80,5 +80,60 @@ Buka order (klik kartunya) → **RAB** → **Cetak / simpan PDF** (pilih "Simpan
 - Bandingkan **HPP per m²** di Dasbor tiap jenis pekerjaan; itu patokan cepat saat pelanggan tanya "per meter berapa?".
 - Tambahkan cadangan 5–10% bahan untuk pekerjaan rumit (lengkung, motif).
 
+## Ganti logo & foto
+
+Pengaturan gambar ada di satu tempat: objek `GAMBAR` di awal `app.js` (`maks: 400` px, `mutu`, `fotoPerOrder: 4`). Gambar diunggah dari aplikasi, diperkecil otomatis, lalu disimpan sebagai dataURL di browser (ikut **Cadangan JSON**).
+
+| Slot | Cara mengganti | Rasio | Bila kosong |
+|---|---|---|---|
+| Logo bengkel (sidebar + kepala RAB/penawaran cetak) | **Pengaturan › Profil & tarif bawaan › Pilih logo** | 1:1 | ikon percikan las; di RAB inisial nama bengkel |
+| Foto hasil kerja per order (maks. 4) | buka order › **Detail order › Tambah foto** (ikon tong sampah untuk menghapus) | bebas, ditampilkan 1:1 | – |
+| Favicon aplikasi | timpa `ikon.svg` | 1:1 | – |
+
+Logo yang gagal dimuat otomatis diganti inisial. Penyimpanan browser terbatas (±5 MB), jadi rutin unduh **Cadangan JSON**.
+
 ---
 Template oleh Maliki Saputra (@malikisaputra) — https://malikisaputra.biz.id
+
+<!-- panduan-ai-maliki -->
+## Ubah sendiri sesuai kebutuhanmu pakai AI
+
+Kamu tidak perlu jago coding. Template ini sudah disiapkan supaya mudah diubah AI: ada **AGENTS.md** (aturan proyek untuk AI), **DESIGN.md** (gaya desain), dan skill Claude di folder `.claude/skills/`. Pilih salah satu cara di bawah.
+
+### Cara 1: ChatGPT, Claude, atau Gemini di browser (paling gampang, gratis)
+1. Unduh ZIP template ini, lalu ekstrak.
+2. Buka chatgpt.com, claude.ai, atau gemini.google.com.
+3. Unggah berkas yang mau diubah (biasanya `index.html`, `style.css`, `app.js`, atau berkas data). Unggah juga `AGENTS.md` dan `DESIGN.md` (kalau ada) biar AI paham aturannya. ChatGPT juga bisa menerima ZIP utuh.
+4. Tulis permintaanmu (contoh di bawah), lalu minta: "Kirim ulang berkas yang diubah secara utuh."
+5. Ganti berkas lama dengan hasil dari AI, lalu buka `index.html` di browser untuk cek.
+
+### Cara 2: Claude Code (paling rapi untuk perubahan besar)
+1. Pasang Claude Code (lihat claude.com/claude-code), atau pakai aplikasi Claude Desktop tab Code.
+2. Buka folder template ini, lalu jalankan `claude` di terminal folder itu.
+3. Tulis permintaanmu. Kalau ada folder `.claude/skills/ubah-…`, Claude Code otomatis memakainya, jadi hasilnya tetap mengikuti desain aslinya.
+
+### Cara 3: Codex (OpenAI)
+1. Pasang Codex CLI atau pakai Codex di aplikasi ChatGPT.
+2. Buka folder template, jalankan `codex`. Codex otomatis membaca `AGENTS.md`.
+3. Tulis permintaanmu, cek perubahannya, lalu setujui.
+
+### Cara 4: Google Antigravity atau Gemini CLI (gratis)
+1. Antigravity: buka aplikasinya, pilih **Open Folder** ke folder template ini, lalu tulis permintaan di panel agen.
+2. Gemini CLI: jalankan `gemini` di folder template.
+3. Di awal, tulis: "Baca AGENTS.md dan DESIGN.md dulu sebelum mengubah apa pun."
+
+### Contoh permintaan yang bisa langsung kamu pakai
+- "Ganti nama, logo teks, dan warna utama jadi hijau tua sesuai usahaku: [nama usaha]."
+- "Tambahkan kolom [nama kolom] di formulir dan tampilkan di daftar."
+- "Ubah semua data contoh jadi data usahaku: [tempel datanya]."
+- "Tambahkan halaman/menu baru untuk [kebutuhan], gaya desainnya sama dengan yang sudah ada."
+- "Jelaskan dulu cara kerja aplikasi ini dengan bahasa sederhana, baru ubah [bagian]."
+
+### Tips biar hasilnya bagus
+- Satu permintaan = satu perubahan. Cek dulu hasilnya, baru minta yang berikutnya.
+- Simpan salinan folder asli sebelum mengubah, jadi bisa balik kalau ada yang rusak.
+- Kalau ada error, salin pesan errornya (klik kanan > Inspect > Console) lalu tempel ke AI.
+- Data aplikasi tersimpan di browser (localStorage). Backup dulu sebelum ganti versi.
+- Jangan hapus kredit "Template oleh @malikisaputra", dan template ini **tidak boleh diperjualbelikan** tanpa izin. Mau menjual atau kerja sama? Diskusikan dulu dengan kreatornya (@malikisaputra).
+
+Masih bingung? Komen di TikTok/IG **@malikisaputra**, nanti aku bantu.
